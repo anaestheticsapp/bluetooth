@@ -1,0 +1,14 @@
+# next project
+rollup.config.js
+dist/views
+index.ejs
+
+# Env
+*.env
+
+# Directories #
+dist/
+node_modules/
+
+# Packages #
+*.gz
