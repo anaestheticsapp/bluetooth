@@ -1,7 +1,5 @@
-import { LitElement, html, css } from 'https://unpkg.com/@polymer/lit-element@latest/lit-element.js?module';
-import { classMap } from 'https://unpkg.com/lit-html/directives/class-map.js?module';
-//import { LitElement, html, css } from 'lit-element';
-//import { classMap } from 'lit-html/directives/class-map.js';
+import { LitElement, html, css } from 'lit';
+import { classMap } from 'lit/directives/class-map.js';
 
 import toggleConnection from '../logic/bluetooth.js';
 import audio from '../logic/sound.js';
@@ -77,7 +75,7 @@ class DemoView extends LitElement {
   }
   render() {
     const isHypoxic = this.sats !== null && this.sats < 98 ? true : false;
-    const isAbnormalRate = this.bpm !== null && this.bpm < 60 || this.bpm > 80 ? true : false;
+    const isAbnormalRate = this.bpm !== null && this.bpm < 50 || this.bpm > 80 ? true : false;
     const hasAlarm = isHypoxic || isAbnormalRate;
     const classList = {
       alarm: hasAlarm,
@@ -107,7 +105,7 @@ class DemoView extends LitElement {
           </section>
         </figure>
         <figure class="blue">
-          <progress max="100" value="${this.bar}">${this.bar}</progress>
+          <progress max="15" value="${this.bar}">${this.bar}</progress>
           <section class="sats">
             <figcaption>SpO2</figcaption>
             <div>${this.sats}</div>
@@ -207,7 +205,7 @@ class DemoView extends LitElement {
         }
         progress::-webkit-progress-value {
           background-color: #2196f3;
-          transition: width 1s linear;
+          transition: width 0.1s linear;
         }
         progress[value] {
           height: 5px;

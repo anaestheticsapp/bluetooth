@@ -1,5 +1,6 @@
 # next project
 rollup.config.js
+tsconfig.json
 dist/views
 index.ejs
 
