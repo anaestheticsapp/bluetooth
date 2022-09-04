@@ -26,40 +26,44 @@ export function handleData(e) {
     data.push(value.getUint8(i));
   }
 
-  if (value.byteLength > 10) console.warn('length', value.byteLength, data);
+  let i = 0;
+  while (data.length > 0) {
+    i++;
 
-  if (cache === undefined) cache = data;
+    const [b1, b2, b3] = data;
 
-  const [b1, b2, b3] = data;
+    if (isVitals(b1, b2, b3)) {
+      parseVitals(data.slice(4, 10));
 
-  if (isVitals(b1, b2, b3)) {
-    parseVitals(data.slice(4, 10));
+      console.log('vitals',
+        `${data[8]}s`, // time
+        data[3] === 0 ? 'ok' : `Status ${data[3]}`,
+        `HR ${data[4]} SpO2 ${data[5]}`,
+        `?${data[6]}`,
+        `?${data[7]}`,
+        `?${data[9]}`,
+      );
 
-    console.log('vitals',
-      `${data[8]}s`, // time
-      data[3] === 0 ? 'ok' : `Status ${data[3]}`,
-      `HR ${data[4]} SpO2 ${data[5]}`,
-      `?${data[6]}`,
-      `?${data[7]}`,
-      `?${data[9]}`,
-    );
+      data = data.slice(10, data.length);
+    } else if (isGraph(b1, b2, b3)) {
+      parseGraph(data[3], data[6]);
+      parseSignal(data[5]);
 
-    cache = data.slice(10, data.length);
-  } else if (isGraph(b1, b2, b3)) {
-    parseGraph(data[3]);
-    parseSignal(data[5]);
+      if (data[5] > 15) console.error(`more than 15 ${data[5]}`);
 
-    if (data[5] > 15) console.error(`more than 15 ${data[5]}`);
+      console.log('graph',
+        data[4] === 0 ? 'ok' : `Status ${data[4]}`,
+        `Trace ${data[3]}, ${data[5]}`, // graph height, bar graph
+        `Time ${data[6]} ${data[7]}`
+      );
 
-    console.log('graph',
-      data[4] === 0 ? 'ok' : `Status ${data[4]}`,
-      `Trace ${data[3]}, ${data[5]}`, // graph height, bar graph
-      `Time ${data[6]} ${data[7]}`
-    );
+      data = data.slice(8, data.length);
+    } else {
+      console.error(data);
+      data = [];
+    }
 
-    cache = data.slice(8, data.length);
-  } else {
-    console.error(data);
+    if (i === 20) break;
   }
 }
 
@@ -82,56 +86,27 @@ function parseVitals(arr) {
 
 let dir;
 function parseSignal(intensity) {
-  let trend;
   if (intensity > demo.bar) {
-    trend = 'up';
+    dir = 'up';
   } else if (intensity < demo.bar) {
-    trend = 'down';
-  }
-
-  if (trend && dir && trend !== dir) {
-    if (trend === 'down') {
+    if (dir === 'up') {
       audio('beep', true);
     }
+    dir = 'down';
   }
 
-  if (trend) dir = trend;
-
-  //if (intensity > 260) console.error('intensity more than 260', intensity);
-  //demo.bar = Math.trunc((intensity / 70) * 100);
   demo.bar = intensity;
 }
 
-function parseGraph(graph) {
+function parseGraph(graph, x) {
   demo.beep = graph / 150;
 
   const height = graph;
 
-  yAxis = demo.drawLine(xAxis, yAxis, height);
+  yAxis = demo.drawLine(x, yAxis, height);
   xAxis++;
 
-  if (xAxis > 300) {
+  if (xAxis > 255) {
     xAxis = yAxis = 0;
   }
-
-  /*
-  graph
-    //.filter((int) => int < 150) // filter anomalies
-    .map((int) => {
-      if (int > 50) {
-        audio('beep', true);
-      }
-
-      demo.beep = int / 150;
-
-      const height = int;
-
-      yAxis = demo.drawLine(xAxis, yAxis, height);
-      xAxis++;
-
-      if (xAxis > 300) {
-        xAxis = yAxis = 0;
-      }
-    });
-  */
 }

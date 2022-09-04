@@ -6,6 +6,7 @@ index.ejs
 
 # Env
 *.env
+env.js
 
 # Directories #
 dist/

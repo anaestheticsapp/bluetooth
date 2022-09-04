@@ -7,6 +7,33 @@ const DEMO_VIEW = document.body.querySelector('demo-view');
  */
 const DEVICE_NAME = 'VTM 20F';
 const SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+const SERVICES = [
+  '00001800-0000-1000-8000-00805f9b34fb',
+  '00001801-0000-1000-8000-00805f9b34fb',
+  '0000180a-0000-1000-8000-00805f9b34fb',
+  '0000fd00-0000-1000-8000-00805f9b34fb',
+  '0000ff90-0000-1000-8000-00805f9b34fb',
+  '0000ffc0-0000-1000-8000-00805f9b34fb',
+  '0000ffe0-0000-1000-8000-00805f9b34fb',
+  '0000ffe5-0000-1000-8000-00805f9b34fb',
+]
+
+const TEXT_VALUES = new Set([
+  '0000ff91',
+  '0000ff96',
+  '00002a26',
+  '00002a27',
+  '00002a00',
+  '00002a29',
+]);
+const NUMBER_VALUES = new Set([
+  '0000ff92',
+  '0000ff93',
+  '0000ff95',
+  '0000ff97',
+  '0000ff98',
+  '0000ff9a',
+]);
 
 /**
  * Older version of sats probe - no longer supported
@@ -14,42 +41,38 @@ const SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
  * const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
  */
 
-let isConnected = false;
 let device = null;
 
 async function toggleConnection() {
   try {
-    if (isConnected) {
-      disconnect();
+    if (device?.gatt?.connected) {
+      device.gatt.disconnect();
     } else {
       await connect();
     }
-    return isConnected;
+    return !!device?.gatt?.connected;
   } catch (err) {
     console.error(err);
   }
 }
 
-function disconnect() {
-  isConnected = false;
-
-  if (!device) {
-    throw new Error('no device found');
-  } else if (!device.gatt.connected) {
-    throw new Error('already disconnected');
-  }
-
-  device.gatt.disconnect();
-
-  console.log('device disconnected');
-}
-
 async function connect() {
   console.log('connecting...');
 
+  /**
+   * Requires user gesture.
+   *
+   * If not using a ```services``` filter or ```acceptAllDevices: true```, must also use ```optionalServices```.
+   *
+   * The VIATOM device does not have a company identifier and does not use standardized Bluetooth GATT services
+   * - Bluetooth GATT services https://www.bluetooth.com/specifications/specs/
+   * - Company identifiers https://www.bluetooth.com/specifications/assigned-numbers/company-identifiers/
+   */
   device = await navigator.bluetooth.requestDevice({
-    filters: [{ name: DEVICE_NAME }],
-    optionalServices: [SERVICE_UUID],
+    filters: [
+      { name: DEVICE_NAME },
+    ],
+    optionalServices: SERVICES,
     //acceptAllDevices: true,
   });
 
@@ -59,25 +82,77 @@ async function connect() {
   const service = await server.getPrimaryService(SERVICE_UUID);
   const characteristics = await service.getCharacteristics();
 
-  for (let i = 0; i < characteristics.length; i++) {
-    const characteristic = characteristics[i];
+  const decoder = new TextDecoder('utf-8');
 
-    console.log({ characteristic });
+  const services = await server.getPrimaryServices();
+  for (const s of services) {
+    const characteristics = await s.getCharacteristics();
 
+    console.group(`service ${s.uuid}`);
+
+    for (const characteristic of characteristics) {
+      const [uuid] = characteristic.uuid.split('-');
+
+      const availableProps = [];
+      for (const key of ['authenticatedSignedWrites', 'broadcast', 'indicate', 'notify', 'read', 'reliableWrite', 'writableAuxiliaries', 'write', 'writeWithoutRespons']) {
+        if (characteristic.properties[key]) availableProps.push(key);
+      }
+
+      let description;
+      try {
+        const descriptor = await characteristic.getDescriptor('gatt.characteristic_user_description');
+        const value = await descriptor.readValue();
+        description = decoder.decode(value).replaceAll('\x00', '');
+      } catch (err) {
+        // no descriptor
+      }
+
+      if (characteristic.properties.read) {
+        const read = await characteristic.readValue();
+
+        let value;
+        if (TEXT_VALUES.has(uuid)) {
+          value = decoder.decode(read).replaceAll('\x00', '');
+        } else if (NUMBER_VALUES.has(uuid)) {
+          let data = [];
+          for (let i = 0; i < read.byteLength; i++) {
+            data.push(read.getUint8(i));
+          }
+          value = data;
+        } else {
+          let data = [];
+          for (let i = 0; i < read.byteLength; i++) {
+            data.push(read.getUint8(i));
+          }
+          value = ['unknown', data, decoder.decode(read)];
+        }
+
+        console.log({uuid, description, value}, availableProps);
+      } else {
+        console.log({uuid, description}, availableProps);
+      }
+    }
+
+    console.groupEnd();
+  }
+
+  for (const characteristic of characteristics) {
     if (characteristic.properties.notify) {
       characteristic.addEventListener('characteristicvaluechanged', handleData);
       characteristic.startNotifications();
     }
+
+
+    // const userDescription = encoder.encode('Defines the time between measurements.');
+    // await descriptor.writeValue(userDescription);
   }
 
-  isConnected = true;
   device.addEventListener('gattserverdisconnected', onDisconnected);
 }
 
 function onDisconnected(e) {
   const t = e.target;
-  alert('Device ' + t.name + ' is disconnected.');
-  isConnected = false;
+  console.log(t.name, 'disconnected');
   device = null;
   DEMO_VIEW.disconnected();
 }

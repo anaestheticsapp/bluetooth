@@ -1,6 +1,6 @@
 const sounds = {
-  alarm: new Audio('./mp3/alarm.mp3'),
-  beep: new Audio('./mp3/beep.mp3'),
+  alarm: new Audio('./assets/mp3/alarm.mp3'),
+  beep: new Audio('./assets/mp3/beep.mp3'),
 }
 
 function audio(sound, play = true) {

@@ -48,6 +48,11 @@ class DemoView extends LitElement {
     const startX = x * WIDTH;
     const endX = startX + WIDTH;
     const newY = BASELINE - height;
+
+    if (y === 0) {
+      return newY;
+    }
+
     ctx.clearRect(startX, 0, x, BASELINE);
     ctx.beginPath();
     ctx.moveTo(startX, y);
@@ -60,8 +65,7 @@ class DemoView extends LitElement {
   }
   async _canvas() {
     const canvas = this.shadowRoot.querySelector('canvas');
-    const ctx = canvas.getContext('2d');
-    this._ctx = ctx;
+    this._ctx = canvas.getContext('2d');
   }
   disconnected() {
     this._graph = {};
