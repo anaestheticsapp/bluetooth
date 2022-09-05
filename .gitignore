@@ -1,15 +1,11 @@
 # next project
-rollup.config.js
 tsconfig.json
-dist/views
-index.ejs
 
 # Env
 *.env
 env.js
 
 # Directories #
-dist/
 node_modules/
 
 # Packages #
